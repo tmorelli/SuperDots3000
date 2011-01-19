@@ -4,10 +4,14 @@ Content\line.xnb
 Content\line_v.xnb
 Content\blue_marker.xnb
 Content\green_marker.xnb
+Content\extra_line_bonus.xnb
 Content\background.xnb
 Content\clunk.xnb
 Content\complete1.xnb
 Content\ding.xnb
 Content\SpriteFont1.xnb
 Content\SpriteFont2.xnb
-Content\extra_line_bonus.xnb
+Content\SpriteFont3.xnb
+Content\player1wins.xnb
+Content\player2wins.xnb
+Content\splash.xnb

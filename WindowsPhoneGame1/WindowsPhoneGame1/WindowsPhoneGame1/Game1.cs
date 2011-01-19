@@ -25,6 +25,12 @@ namespace WindowsPhoneGame1
         Texture2D lineSprite;
         Texture2D vlineSprite;
 
+        Texture2D splashSprite;
+        Texture2D player1WinsSprite;
+        Texture2D player2WinsSprite;
+
+
+
         Texture2D player1MarkerSprite;
         Texture2D player2MarkerSprite;
 
@@ -44,7 +50,14 @@ namespace WindowsPhoneGame1
 
         SpriteFont scoreFont;
         SpriteFont labelFont;
+        SpriteFont nextMoveFont;
 
+
+        int SPLASH_STATE = 0;
+        int PLAYING_GAME_STATE = 1;
+        int GAME_OVER_STATE = 2;
+
+        int state = 0;
 
 
         int SQUARE_VALUE = 100;
@@ -56,8 +69,8 @@ namespace WindowsPhoneGame1
         int X_GRID_START = 40;
         int DOT_CENTER_OFFSET = 8;
 
-        int ODDS_EXTRA_LINE_BONUS = 2;
-        int ODDS_RANDOM_LINE_BONUS = 2;
+        int ODDS_EXTRA_LINE_BONUS = 100000;
+        int ODDS_RANDOM_LINE_BONUS = 100000;
 
         int HORIZONTAL_LINES;
         int VERTICAL_LINES;
@@ -70,10 +83,12 @@ namespace WindowsPhoneGame1
     
         bool [,] player1Markers;
         bool [,] player2Markers;
+        int [,] spaceOccupied;
 
  
         Point touchDownPoint = new Point();
         Point touchUpPoint = new Point();
+
 
         /******
         * Extra Line Bonus
@@ -105,10 +120,15 @@ namespace WindowsPhoneGame1
             vertLines = new bool [X_GRID+1,Y_GRID+1];
             player1Markers = new bool[X_GRID - 1, Y_GRID - 1];
             player2Markers = new bool[X_GRID - 1, Y_GRID - 1];
+            spaceOccupied  = new int[X_GRID - 1, Y_GRID - 1];
 
-            InitLines();
+
+            InitLines(false);
             InitTouchPoints();
             InitPlayerMarkers();
+
+            state = SPLASH_STATE;
+            timeSinceLastTick = 0;
 
             // Frame rate is 30 fps by default for Windows Phone.
             TargetElapsedTime = TimeSpan.FromTicks(333333);
@@ -142,10 +162,17 @@ namespace WindowsPhoneGame1
             player1MarkerSprite = this.Content.Load<Texture2D>("blue_marker");
             player2MarkerSprite = this.Content.Load<Texture2D>("green_marker");
 
+
+            splashSprite = this.Content.Load<Texture2D>("splash");
+            player1WinsSprite = this.Content.Load<Texture2D>("player1wins");
+            player2WinsSprite = this.Content.Load<Texture2D>("player2wins");
+
+
             extraLineBonusSprite = this.Content.Load<Texture2D>("extra_line_bonus");
 
             scoreFont = this.Content.Load<SpriteFont>("SpriteFont1");
             labelFont = this.Content.Load<SpriteFont>("SpriteFont2");
+            nextMoveFont = this.Content.Load<SpriteFont>("SpriteFont3");
 
 
 
@@ -178,7 +205,7 @@ namespace WindowsPhoneGame1
         {
             // TODO: Unload any non ContentManager content here
         }
-        private void InitLines()
+        private void InitLines(bool _reset)
         {
             //	  for (int xx = 0; xx< X_GRID-1; xx++)
             for (int xx = 0; xx < X_GRID + 1; xx++)
@@ -186,7 +213,8 @@ namespace WindowsPhoneGame1
                 //		  for (int yy = 0; yy< Y_GRID; yy++)
                 for (int yy = 0; yy < Y_GRID + 1; yy++)
                 {
-                    horizLines[xx,yy] = new bool();
+                    if (!_reset)
+                      horizLines[xx,yy] = new bool();
                     horizLines[xx,yy] = false;
                     
                 }
@@ -198,7 +226,8 @@ namespace WindowsPhoneGame1
                 //		  for (int yy = 0; yy< Y_GRID-1; yy++)
                 for (int yy = 0; yy < Y_GRID + 1; yy++)
                 {
-                    vertLines[xx,yy] = new bool();
+                    if (!_reset)
+                        vertLines[xx, yy] = new bool();
                     vertLines[xx,yy] = false;
                 }
             }
@@ -209,21 +238,39 @@ namespace WindowsPhoneGame1
             String text = "SCORE";
             spriteBatch.DrawString(scoreFont, text, new Vector2(640,40), Color.White);
 
-            text = "Player 1:  " + player1Score.ToString ();
+            text = "Player 1:  ";
             spriteBatch.DrawString(labelFont, text, new Vector2(640,100), Color.White);
 
-            text = "Player 2:  " + player2Score.ToString();
-            spriteBatch.DrawString(labelFont, text, new Vector2(640, 130), Color.White);
+            text = player1Score.ToString();
+            spriteBatch.DrawString(nextMoveFont, text, new Vector2(640, 120), Color.White);
+
+
+
+            text = "Player 2:  ";
+            spriteBatch.DrawString(labelFont, text, new Vector2(640, 160), Color.White);
+            text = player2Score.ToString();
+            spriteBatch.DrawString(nextMoveFont, text, new Vector2(640, 180), Color.White);
 
 
             text = "Next Move:";
-            spriteBatch.DrawString(labelFont, text, new Vector2(640, 330), Color.White);
+            spriteBatch.DrawString(nextMoveFont, text, new Vector2(640, 330), Color.White);
 
             if (playerTurn == 0)
-                text = "Player 1 (Blue)";
+            {
+                text = "Player 1";
+                spriteBatch.DrawString(labelFont, text, new Vector2(640, 360), Color.White);
+
+                text = "(Blue)";
+                spriteBatch.DrawString(labelFont, text, new Vector2(640, 380), Color.White);
+
+            }
             else
-                text = "Player 2 (Green)";
-            spriteBatch.DrawString(labelFont, text, new Vector2(640, 360), Color.White);
+            {
+                text = "Player 2 ";
+                spriteBatch.DrawString(labelFont, text, new Vector2(640, 360), Color.White);
+                text = "(Green)";
+                spriteBatch.DrawString(labelFont, text, new Vector2(640, 380), Color.White);
+            }
 
         }
 
@@ -237,35 +284,48 @@ namespace WindowsPhoneGame1
             // Allows the game to exit
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed)
                 this.Exit();
+            if (state == SPLASH_STATE)
+            {
+                timeSinceLastTick += gameTime.ElapsedGameTime.Milliseconds;
+                if (timeSinceLastTick >= 4000)
+                {
+                    timeSinceLastTick = 0;
+                    state = PLAYING_GAME_STATE;
+                }
+                base.Update(gameTime);
+                return;
+            }
 
             if (playingExtraLineBonusAnimation)
                 TickExtraLineBonusAnimation(gameTime);
 
-
-            TouchCollection tc = TouchPanel.GetState();
-            if (tc.Count >0)
+            if (!playingExtraLineBonusAnimation)
             {
-                foreach (TouchLocation tl in tc)
+                TouchCollection tc = TouchPanel.GetState();
+                if (tc.Count > 0)
                 {
-                    if (tl.State == TouchLocationState.Released)
+                    foreach (TouchLocation tl in tc)
                     {
-                        touchUpPoint.X = (int)tl.Position.X;
-                        touchUpPoint.Y = (int)tl.Position.Y;
-                        ProcessTouchUp();
+                        if (tl.State == TouchLocationState.Released)
+                        {
+                            touchUpPoint.X = (int)tl.Position.X;
+                            touchUpPoint.Y = (int)tl.Position.Y;
+                            ProcessTouchUp();
 
-                        Console.WriteLine("UP!!");
+                            Console.WriteLine("UP!!");
+                        }
+                        if (tl.State == TouchLocationState.Pressed)
+                        {
+                            touchDownPoint.X = (int)tl.Position.X;
+                            touchDownPoint.Y = (int)tl.Position.Y;
+
+                            Console.WriteLine("UP!!");
+                        }
+
+
                     }
-                    if (tl.State == TouchLocationState.Pressed)
-                    {
-                        touchDownPoint.X = (int)tl.Position.X;
-                        touchDownPoint.Y = (int)tl.Position.Y;
-
-                        Console.WriteLine("UP!!");
-                    }
-
 
                 }
-
             }
 
             // TODO: Add your update logic here
@@ -279,6 +339,13 @@ namespace WindowsPhoneGame1
             //or not enough for either
 
             bool turnComplete = false;
+
+            if (state == GAME_OVER_STATE)
+            {
+                ResetBoard();
+                state = PLAYING_GAME_STATE;
+            }
+
             /*
             if (rlb.GetState() == RandomLineBonus.SHOW_MENU)
             {
@@ -584,6 +651,7 @@ namespace WindowsPhoneGame1
                 {
                     player1Markers[x,y] = false;
                     player2Markers[x,y] = false;
+                    spaceOccupied[x,y]  = 0;
                 }
             }
         }
@@ -602,11 +670,13 @@ private void UpdateHorizMarkers(int _x, int _y)
 			  {
 				  matchesFound ++;
 				  player1Markers[_x,_y-1] = true;
+                  spaceOccupied[_x,_y-1]  = 1;
 			  }
 			  else
 			  {
 				  matchesFound ++;
 				  player2Markers[_x,_y-1] = true;				  
+                  spaceOccupied[_x,_y-1] = 2;
 			  }
 		  }
 	  }
@@ -618,11 +688,13 @@ private void UpdateHorizMarkers(int _x, int _y)
 			  {
 				  matchesFound ++;
 				  player1Markers[_x,_y] = true;
+                  spaceOccupied[_x,_y] = 1;
 			  }
 			  else
 			  {
 				  matchesFound ++;
-				  player2Markers[_x,_y] = true;				  
+				  player2Markers[_x,_y] = true;	
+			      spaceOccupied[_x,_y] = 2;
 			  }
 		  }
 	  }
@@ -669,11 +741,13 @@ private void UpdateHorizMarkers(int _x, int _y)
 			  {
 				  matchesFound++;
 				  player1Markers[_x-1,_y] = true;
+                  spaceOccupied[_x-1,_y] = 1;
 			  }
 			  else
 			  {
 				  matchesFound++;
-				  player2Markers[_x-1,_y] = true;				  
+				  player2Markers[_x-1,_y] = true;			
+	              spaceOccupied[_x-1,_y] = 2;
 			  }
 		  }
 	  }
@@ -685,11 +759,13 @@ private void UpdateHorizMarkers(int _x, int _y)
 			  {
 				  matchesFound++;
 				  player1Markers[_x,_y] = true;
+                  spaceOccupied[_x,_y] = 1;
 			  } 
 			  else
 			  {
 				  matchesFound++;
-				  player2Markers[_x,_y] = true;				  
+				  player2Markers[_x,_y] = true;
+				  spaceOccupied[_x,_y] = 2;
 			  }
 		  }
 	  }
@@ -724,19 +800,30 @@ private void UpdateHorizMarkers(int _x, int _y)
           } 
 	  } 
   }
-  private void CheckGameCompleted()
+  private bool CheckGameCompleted()
   {
       //Check inside here if there are no more squares left.
       //Set our state here
 
+      for (int x = 0; x < X_GRID - 1; x++)
+      {
+          for (int y = 0; y < Y_GRID - 1; y++)
+          {
+
+              if (spaceOccupied[x, y] == 0)
+                  return false;
+          }
+      }
+      state = GAME_OVER_STATE;
+      return true;
   }
 
 
-        /// <summary>
-        /// This is called when the game should draw itself.
-        /// </summary>
-        /// <param name="gameTime">Provides a snapshot of timing values.</param>
-        protected override void Draw(GameTime gameTime)
+  /// <summary>
+  /// This is called when the game should draw itself.
+  /// </summary>
+  /// <param name="gameTime">Provides a snapshot of timing values.</param>
+  protected override void Draw(GameTime gameTime)
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
@@ -747,9 +834,28 @@ private void UpdateHorizMarkers(int _x, int _y)
             DrawLines();
             DrawScore();
             if (playingExtraLineBonusAnimation && onTicks >= 0)
-                DrawExtraLineBonusAnimation();
+              DrawExtraLineBonusAnimation();
+
+            if (state == SPLASH_STATE)
+            {
+                spriteBatch.Draw(splashSprite, new Vector2(0, 0), Color.White);
+            }
+            else if (state == GAME_OVER_STATE)
+            {
+                if (player1Score > player2Score)
+                {
+                    spriteBatch.Draw(player1WinsSprite, new Vector2(0, 0), Color.White);
+                }
+                else
+                {
+                    spriteBatch.Draw(player2WinsSprite, new Vector2(0, 0), Color.White);
+                }
+            }
+
+
+      
             spriteBatch.End();
-            // TODO: Add your drawing code here
+             // TODO: Add your drawing code here
 
             base.Draw(gameTime);
         }
@@ -839,6 +945,14 @@ private void UpdateHorizMarkers(int _x, int _y)
                 y = Y_GRID_START;
                 x += GRID_SPACING;
             }
+        }
+        public void ResetBoard()
+        {
+            player1Score = 0;
+            player2Score = 0;
+            InitPlayerMarkers();
+            InitLines(true);
+
         }
     }
 }
