@@ -29,6 +29,20 @@ namespace WindowsPhoneGame1
         Texture2D player1WinsSprite;
         Texture2D player2WinsSprite;
 
+        Texture2D help1Sprite;
+        Texture2D help2Sprite;
+        Texture2D help3Sprite;
+        int BUTTON1X = 84;
+        int BUTTON2X = 437;
+        int BUTTON_WIDTH = 100;
+
+        int BUTTON1Y = 320;
+        int BUTTON2Y = 320;
+        int BUTTON_HEIGHT = 50;
+
+        int TOTAL_HELP_PAGES = 3;
+
+
 
 
         Texture2D player1MarkerSprite;
@@ -54,11 +68,13 @@ namespace WindowsPhoneGame1
 
 
         int SPLASH_STATE = 0;
-        int PLAYING_GAME_STATE = 1;
-        int GAME_OVER_STATE = 2;
+        int HELP_STATE = 1;
+        int PLAYING_GAME_STATE = 2;
+        int GAME_OVER_STATE = 3;
 
         int state = 0;
 
+        int helpPage = 0;
 
         int SQUARE_VALUE = 100;
 
@@ -69,7 +85,7 @@ namespace WindowsPhoneGame1
         int X_GRID_START = 40;
         int DOT_CENTER_OFFSET = 8;
 
-        int ODDS_EXTRA_LINE_BONUS = 100000;
+        int ODDS_EXTRA_LINE_BONUS = 10;
         int ODDS_RANDOM_LINE_BONUS = 100000;
 
         int HORIZONTAL_LINES;
@@ -167,6 +183,9 @@ namespace WindowsPhoneGame1
             player1WinsSprite = this.Content.Load<Texture2D>("player1wins");
             player2WinsSprite = this.Content.Load<Texture2D>("player2wins");
 
+            help1Sprite = this.Content.Load<Texture2D>("superdotshelp1");
+            help2Sprite = this.Content.Load<Texture2D>("superdotshelp2");
+            help3Sprite = this.Content.Load<Texture2D>("superdotshelp3");
 
             extraLineBonusSprite = this.Content.Load<Texture2D>("extra_line_bonus");
 
@@ -290,7 +309,7 @@ namespace WindowsPhoneGame1
                 if (timeSinceLastTick >= 4000)
                 {
                     timeSinceLastTick = 0;
-                    state = PLAYING_GAME_STATE;
+                    state = HELP_STATE;
                 }
                 base.Update(gameTime);
                 return;
@@ -345,7 +364,37 @@ namespace WindowsPhoneGame1
                 ResetBoard();
                 state = PLAYING_GAME_STATE;
             }
+            if (state == HELP_STATE)
+            {
 
+                if (touchUpPoint.X > BUTTON1X && touchUpPoint.X < BUTTON1X + BUTTON_WIDTH)
+                {
+                    if (touchUpPoint.Y > BUTTON1Y && touchUpPoint.Y < BUTTON1Y + BUTTON_HEIGHT)
+                    {
+                        if (helpPage != (TOTAL_HELP_PAGES-1))
+                        {
+                          state = PLAYING_GAME_STATE;
+                        }
+                        //Button 1 pressed...
+                    }
+                }
+
+                else if (touchUpPoint.X > BUTTON2X && touchUpPoint.X < BUTTON2X + BUTTON_WIDTH)
+                {
+                    if (touchUpPoint.Y > BUTTON2Y && touchUpPoint.Y < BUTTON2Y + BUTTON_HEIGHT)
+                    {
+                        if (helpPage < (TOTAL_HELP_PAGES - 1))
+                        {
+                            helpPage++;
+                        }
+                        else
+                        {
+                            state = PLAYING_GAME_STATE;
+                        }
+                        //Button 2 pressed...
+                    }
+                }
+            }
             /*
             if (rlb.GetState() == RandomLineBonus.SHOW_MENU)
             {
@@ -839,6 +888,21 @@ private void UpdateHorizMarkers(int _x, int _y)
             if (state == SPLASH_STATE)
             {
                 spriteBatch.Draw(splashSprite, new Vector2(0, 0), Color.White);
+            }
+            else if (state == HELP_STATE)
+            {
+                if (helpPage == 0)
+                {
+                    spriteBatch.Draw(help1Sprite, new Vector2(0, 0), Color.White);
+                }
+                else if (helpPage == 1)
+                {
+                    spriteBatch.Draw(help2Sprite, new Vector2(0, 0), Color.White);
+                }
+                else if (helpPage == 2)
+                {
+                    spriteBatch.Draw(help3Sprite, new Vector2(0, 0), Color.White);
+                }
             }
             else if (state == GAME_OVER_STATE)
             {
