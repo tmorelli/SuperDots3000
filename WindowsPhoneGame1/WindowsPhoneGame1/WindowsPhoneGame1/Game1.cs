@@ -32,6 +32,11 @@ namespace WindowsPhoneGame1
         Texture2D help1Sprite;
         Texture2D help2Sprite;
         Texture2D help3Sprite;
+        Texture2D help4Sprite;
+
+
+        Texture2D chooseNumPlayers;
+
         int BUTTON1X = 84;
         int BUTTON2X = 437;
         int BUTTON_WIDTH = 100;
@@ -40,15 +45,22 @@ namespace WindowsPhoneGame1
         int BUTTON2Y = 320;
         int BUTTON_HEIGHT = 50;
 
-        int TOTAL_HELP_PAGES = 3;
+        int TOTAL_HELP_PAGES = 5;
 
 
+        //Tweak these to increase/decrease AI
+        int VIRTUAL_MAX = 5;
+        int VIRTUAL_MIN = 1;
 
 
         Texture2D player1MarkerSprite;
         Texture2D player2MarkerSprite;
 
-       
+
+        int MIN_VIRTUAL_PLAYER_DELAY = 1000;
+        int MAX_VIRTUAL_PLAYER_DELAY = 3000;
+
+        int virtualPlayerTimeRemaining = 0;
 
         SoundEffect sfx;
         SoundEffectInstance sndBackground;
@@ -100,6 +112,8 @@ namespace WindowsPhoneGame1
         bool [,] player1Markers;
         bool [,] player2Markers;
         int [,] spaceOccupied;
+
+        int numPlayers = 1;
 
  
         Point touchDownPoint = new Point();
@@ -186,6 +200,8 @@ namespace WindowsPhoneGame1
             help1Sprite = this.Content.Load<Texture2D>("superdotshelp1");
             help2Sprite = this.Content.Load<Texture2D>("superdotshelp2");
             help3Sprite = this.Content.Load<Texture2D>("superdotshelp3");
+            help4Sprite = this.Content.Load<Texture2D>("superdotshelp4");
+            chooseNumPlayers = this.Content.Load<Texture2D>("numplayers");
 
             extraLineBonusSprite = this.Content.Load<Texture2D>("extra_line_bonus");
 
@@ -279,16 +295,19 @@ namespace WindowsPhoneGame1
                 text = "Player 1";
                 spriteBatch.DrawString(labelFont, text, new Vector2(640, 360), Color.White);
 
-                text = "(Blue)";
-                spriteBatch.DrawString(labelFont, text, new Vector2(640, 380), Color.White);
+//                text = "(Blue)";
+//                spriteBatch.DrawString(labelFont, text, new Vector2(640, 380), Color.White);
+                spriteBatch.Draw(player1MarkerSprite, new Vector2(640, 390), Color.White);
+
 
             }
             else
             {
                 text = "Player 2 ";
                 spriteBatch.DrawString(labelFont, text, new Vector2(640, 360), Color.White);
-                text = "(Green)";
-                spriteBatch.DrawString(labelFont, text, new Vector2(640, 380), Color.White);
+//                text = "(Green)";
+//                spriteBatch.DrawString(labelFont, text, new Vector2(640, 380), Color.White);
+                spriteBatch.Draw(player2MarkerSprite, new Vector2(640, 390), Color.White);
             }
 
         }
@@ -320,6 +339,20 @@ namespace WindowsPhoneGame1
 
             if (!playingExtraLineBonusAnimation)
             {
+                if (numPlayers == 1 && playerTurn == 1)
+                {
+
+                    if (virtualPlayerTimeRemaining <= 0)
+                    {
+                        VirtualPlayerMove(gameTime);
+                    }
+                    else
+                    {
+                        virtualPlayerTimeRemaining -= gameTime.ElapsedGameTime.Milliseconds;
+                        base.Update(gameTime);
+                        return;
+                    }
+                }
                 TouchCollection tc = TouchPanel.GetState();
                 if (tc.Count > 0)
                 {
@@ -371,9 +404,15 @@ namespace WindowsPhoneGame1
                 {
                     if (touchUpPoint.Y > BUTTON1Y && touchUpPoint.Y < BUTTON1Y + BUTTON_HEIGHT)
                     {
-                        if (helpPage != (TOTAL_HELP_PAGES-1))
+                        if (helpPage != (TOTAL_HELP_PAGES - 1))
                         {
-                          state = PLAYING_GAME_STATE;
+                            //                          state = PLAYING_GAME_STATE;
+                            helpPage = TOTAL_HELP_PAGES - 1;
+                        }
+                        else
+                        {
+                            numPlayers = 1;
+                            state = PLAYING_GAME_STATE;
                         }
                         //Button 1 pressed...
                     }
@@ -387,8 +426,9 @@ namespace WindowsPhoneGame1
                         {
                             helpPage++;
                         }
-                        else
+                        else if (helpPage == TOTAL_HELP_PAGES -1)
                         {
+                            numPlayers = 2;
                             state = PLAYING_GAME_STATE;
                         }
                         //Button 2 pressed...
@@ -450,7 +490,7 @@ namespace WindowsPhoneGame1
                                     turnComplete = true;
                                     horizLines[xx,yy] = true;
                                     sndClunk.Play();
-                                    UpdateHorizMarkers(xx, yy);
+                                    UpdateHorizMarkers(xx, yy, false);
                                 }
                             }
                             else if (xx > 0)
@@ -460,7 +500,7 @@ namespace WindowsPhoneGame1
                                     turnComplete = true;
                                     horizLines[xx - 1,yy] = true;
                                     sndClunk.Play();
-                                    UpdateHorizMarkers(xx - 1, yy);
+                                    UpdateHorizMarkers(xx - 1, yy, false);
                                 }
                             }
                         }
@@ -497,7 +537,7 @@ namespace WindowsPhoneGame1
                                     turnComplete = true;
                                     vertLines[xx,yy] = true;
                                     sndClunk.Play();
-                                    UpdateVertMarkers(xx, yy);
+                                    UpdateVertMarkers(xx, yy, false);
                                 }
                             }
                             else if (yy > 0)
@@ -507,7 +547,7 @@ namespace WindowsPhoneGame1
                                     turnComplete = true;
                                     vertLines[xx,yy - 1] = true;
                                     sndClunk.Play();
-                                    UpdateVertMarkers(xx, yy - 1);
+                                    UpdateVertMarkers(xx, yy - 1, false);
                                 }
                             }
                         }
@@ -625,9 +665,18 @@ namespace WindowsPhoneGame1
                 else
                 {
                     if (playerTurn == 0)
+                    {
+                        if (numPlayers == 1)
+                        {
+                            virtualPlayerTimeRemaining =
+                                r.Next(MAX_VIRTUAL_PLAYER_DELAY - MIN_VIRTUAL_PLAYER_DELAY) + MIN_VIRTUAL_PLAYER_DELAY;
+                        }
                         playerTurn = 1;
+                    }
                     else
+                    {
                         playerTurn = 0;
+                    }
                 }
                  
 
@@ -635,6 +684,142 @@ namespace WindowsPhoneGame1
             }
         }
 
+        private void VirtualPlayerMove(GameTime gameTime)
+        {
+            bool completeHorizFound = false;
+            Point completeHorizPoint = new Point();
+            bool completeVertFound = false;
+            Point completeVertPoint = new Point();
+
+            //Need to loop through all the possible places to move
+            //First just pick one at random and mark it moved, evaluate board, and move on
+            //Then be intelligent about choosing
+            //First pick one that will create a square
+            //Then pick one that will create a block
+            //Then pick one that will not create 3 to a square
+            //Then pick one that will make 2 lines
+            //Then pick a random one...
+            List<Point> horizAvail = new List<Point>();
+            List<Point> vertAvail = new List<Point>();
+            for (int xx = 0; xx < X_GRID - 1 ; xx++)
+            {
+                for (int yy = 0; yy < Y_GRID ; yy++)
+                {
+                    if (horizLines[xx, yy] == false)
+                    {
+                        if (UpdateHorizMarkers(xx, yy, true))
+                        {
+                            completeHorizFound = true;
+                            completeHorizPoint.X = xx;
+                            completeHorizPoint.Y = yy;
+                        }
+                        horizAvail.Add(new Point(xx, yy));
+                    }
+                }
+            }
+
+            for (int xx = 0; xx < X_GRID ; xx++)
+            {
+                for (int yy = 0; yy < Y_GRID-1 ; yy++)
+                {
+                    if (vertLines[xx, yy] == false)
+                    {
+                        if (UpdateVertMarkers(xx, yy, true))
+                        {
+                            completeVertFound = true;
+                            completeVertPoint.X = xx;
+                            completeVertPoint.Y = yy;
+                        }
+                        vertAvail.Add(new Point(xx, yy));
+                    }
+                }
+            }
+            if (r.Next(VIRTUAL_MAX) < VIRTUAL_MIN)
+            {
+                completeVertFound = false;
+                completeHorizFound = false;
+            }
+            if (completeVertFound && completeHorizFound)
+            {
+                if (r.Next(2) == 0)
+                {
+
+                    vertLines[completeVertPoint.X, completeVertPoint.Y] = true;
+                    sndClunk.Play();
+                    UpdateVertMarkers(completeVertPoint.X, completeVertPoint.Y, false);
+                }
+                else
+                {
+
+                    horizLines[completeHorizPoint.X, completeHorizPoint.Y] = true;
+                    sndClunk.Play();
+                    UpdateHorizMarkers(completeHorizPoint.X, completeHorizPoint.Y, false);
+                }
+
+            }
+            else if (completeVertFound)
+            {
+                vertLines[completeVertPoint.X, completeVertPoint.Y] = true;
+                sndClunk.Play();
+                UpdateVertMarkers(completeVertPoint.X, completeVertPoint.Y, false);
+            }
+            else if (completeHorizFound)
+            {
+                horizLines[completeHorizPoint.X, completeHorizPoint.Y] = true;
+                sndClunk.Play();
+                UpdateHorizMarkers(completeHorizPoint.X, completeHorizPoint.Y, false);
+            }
+
+            else
+            {
+                int totalAvail = vertAvail.Count() + horizAvail.Count();
+                if (totalAvail > 0)
+                {
+                    int selection = r.Next(totalAvail);
+                    if (selection < horizAvail.Count())
+                    {
+                        Point p = horizAvail.ElementAt(selection);
+                        horizLines[p.X, p.Y] = true;
+                        sndClunk.Play();
+                        UpdateHorizMarkers(p.X, p.Y, false);
+                    }
+                    else
+                    {
+                        selection = selection - horizAvail.Count();
+                        Point p = vertAvail.ElementAt(selection);
+                        vertLines[p.X, p.Y] = true;
+                        sndClunk.Play();
+                        UpdateVertMarkers(p.X, p.Y, false);
+                    }
+                }
+                else
+                {
+                    //Some error handling here...
+                }
+            }
+ 
+
+
+//            if (turnComplete)
+            {
+                if (r.Next(ODDS_EXTRA_LINE_BONUS) == 0)
+                {
+                    playingExtraLineBonusAnimation = true;
+                    extraLineBonusLocation.X = 150;
+                    extraLineBonusLocation.Y = 150;
+                    onTicks = 0;
+                    offTicks = -1;
+                    timeSinceLastTick = 0;
+                    extraLineBonusElapsedTime = 0;
+                }
+                else
+                {
+                    playerTurn = 0;
+                }
+            }
+            InitTouchPoints();
+
+        }
         private void EndExtraLineBonusAnimation()
         {
             playingExtraLineBonusAnimation = false;
@@ -705,11 +890,14 @@ namespace WindowsPhoneGame1
             }
         }
  
-private void UpdateHorizMarkers(int _x, int _y)
+private bool UpdateHorizMarkers(int _x, int _y, bool _check)
   { 
 	  //Now we need to go through all attached
 	  //and see if we have 4 adjacent
-	  
+
+
+      List<Point> newTokens = new List<Point>();
+
 	  int matchesFound = 0;
 	  if (_y >0 && horizLines[_x,_y-1] == true)
 	  {
@@ -718,14 +906,22 @@ private void UpdateHorizMarkers(int _x, int _y)
 			  if (playerTurn == 0)
 			  {
 				  matchesFound ++;
-				  player1Markers[_x,_y-1] = true;
-                  spaceOccupied[_x,_y-1]  = 1;
+                  if (!_check)
+                  {
+                      player1Markers[_x, _y - 1] = true;
+                      spaceOccupied[_x, _y - 1] = 1;
+                      newTokens.Add(new Point(_x, _y - 1));
+                  }
 			  }
 			  else
 			  {
-				  matchesFound ++;
-				  player2Markers[_x,_y-1] = true;				  
-                  spaceOccupied[_x,_y-1] = 2;
+                  matchesFound++;
+                  if (!_check)
+                  {
+                      player2Markers[_x, _y - 1] = true;
+                      spaceOccupied[_x, _y - 1] = 2;
+                      newTokens.Add(new Point(_x, _y - 1));
+                  }
 			  }
 		  }
 	  }
@@ -736,52 +932,77 @@ private void UpdateHorizMarkers(int _x, int _y)
 			  if (playerTurn == 0)
 			  {
 				  matchesFound ++;
-				  player1Markers[_x,_y] = true;
-                  spaceOccupied[_x,_y] = 1;
+                  if (!_check)
+                  {
+                      player1Markers[_x, _y] = true;
+                      spaceOccupied[_x, _y] = 1;
+                      newTokens.Add(new Point(_x, _y));
+                  }
 			  }
 			  else
 			  {
 				  matchesFound ++;
-				  player2Markers[_x,_y] = true;	
-			      spaceOccupied[_x,_y] = 2;
+                  if (!_check)
+                  {
+                      player2Markers[_x, _y] = true;
+                      spaceOccupied[_x, _y] = 2;
+                      newTokens.Add(new Point(_x, _y));
+                  }
 			  }
 		  }
 	  }
-	  if (playerTurn == 0)
+	  if (playerTurn == 0 && !_check)
 	  {
 		  if (matchesFound == 1)
 		  {
-              sndComplete.Play();
+              int length = CalcMaxLength(newTokens);
+             sndComplete.Play();
 		    player1Score += matchesFound*SQUARE_VALUE ;
+            if (length > 1)
+                player1Score += SQUARE_VALUE * length;
             CheckGameCompleted();
           }
 		  else if (matchesFound >1)
 		  {
+              int length = CalcMaxLength(newTokens);
               sndComplete.Play();
               player1Score += 2 * matchesFound*SQUARE_VALUE;
+              if (length > 2)
+                  player1Score += SQUARE_VALUE * length;
               CheckGameCompleted();
           }
 	  }
-	  if (playerTurn == 1)
+	  if (playerTurn == 1 && !_check)
 	  {
 		  if (matchesFound == 1)
 		  {
+              int length = CalcMaxLength(newTokens);
               sndComplete.Play();
               player2Score += matchesFound*SQUARE_VALUE;
+              if (length > 1)
+                  player2Score += SQUARE_VALUE * length;
               CheckGameCompleted();
           }
 		  else if (matchesFound >1)
 		  {
+              int length = CalcMaxLength(newTokens);
               sndComplete.Play();
               player2Score += 2 * matchesFound*SQUARE_VALUE;
+              if (length > 2)
+                  player2Score += SQUARE_VALUE * length;
               CheckGameCompleted();
           }
 	  }
+      if (matchesFound > 0)
+          return true;
+      else
+          return false;
 
   }
-  private void UpdateVertMarkers(int _x, int _y)
+  private bool UpdateVertMarkers(int _x, int _y, bool _check)
   {
-	  int matchesFound = 0;
+      List<Point> newTokens = new List<Point>();
+      int matchesFound = 0;
 	  if (_x >0 && vertLines[_x-1,_y] == true)
 	  {
 		  if (horizLines[_x-1,_y]==true && horizLines[_x-1,_y+1] == true)
@@ -789,14 +1010,24 @@ private void UpdateHorizMarkers(int _x, int _y)
 			  if (playerTurn == 0)
 			  {
 				  matchesFound++;
-				  player1Markers[_x-1,_y] = true;
-                  spaceOccupied[_x-1,_y] = 1;
+                  if (!_check)
+                  {
+                      player1Markers[_x - 1, _y] = true;
+                      spaceOccupied[_x - 1, _y] = 1;
+                      newTokens.Add(new Point(_x-1, _y));
+                  }
 			  }
 			  else
 			  {
 				  matchesFound++;
-				  player2Markers[_x-1,_y] = true;			
-	              spaceOccupied[_x-1,_y] = 2;
+                  if (!_check)
+                  {
+				    player2Markers[_x-1,_y] = true;			
+	                spaceOccupied[_x-1,_y] = 2;
+                    newTokens.Add(new Point(_x-1, _y ));
+
+                  }
+
 			  }
 		  }
 	  }
@@ -807,47 +1038,123 @@ private void UpdateHorizMarkers(int _x, int _y)
 			  if (playerTurn == 0)
 			  {
 				  matchesFound++;
-				  player1Markers[_x,_y] = true;
-                  spaceOccupied[_x,_y] = 1;
+                  if (!_check)
+                  {
+				    player1Markers[_x,_y] = true;
+                    spaceOccupied[_x,_y] = 1;
+                    newTokens.Add(new Point(_x, _y));
+
+                  }
+
 			  } 
 			  else
 			  {
 				  matchesFound++;
-				  player2Markers[_x,_y] = true;
-				  spaceOccupied[_x,_y] = 2;
+                  if (!_check)
+                  {
+                      player2Markers[_x, _y] = true;
+                      spaceOccupied[_x, _y] = 2;
+                      newTokens.Add(new Point(_x, _y));
+
+                  }
+
 			  }
 		  }
 	  }
-	  if (playerTurn == 0)
+	  if (playerTurn == 0 && !_check)
 	  {
 		  if (matchesFound == 1)
 		  {
+              int length = CalcMaxLength(newTokens);
               sndComplete.Play();
               player1Score += matchesFound*SQUARE_VALUE;
+              if (length > 1)
+                  player1Score += SQUARE_VALUE * length;
               CheckGameCompleted();
 		  }
 		  else if (matchesFound >1)
 		  {
+              int length = CalcMaxLength(newTokens);
               sndComplete.Play();
               player1Score += 2 * matchesFound*SQUARE_VALUE;
+              if (length > 2)
+                  player1Score += SQUARE_VALUE * length;
               CheckGameCompleted();
           }
 	  }
-	  if (playerTurn == 1)
+	  if (playerTurn == 1 && !_check)
 	  {
 		  if (matchesFound == 1)
 		  {
+              int length = CalcMaxLength(newTokens);
               sndComplete.Play();
               player2Score += matchesFound*SQUARE_VALUE;
+              if (length > 1)
+                  player2Score += SQUARE_VALUE * length;
               CheckGameCompleted();
           }
 		  else if (matchesFound >1)
 		  {
+              int length = CalcMaxLength(newTokens);
               sndComplete.Play();
               player2Score += 2 * matchesFound*SQUARE_VALUE;
+              if (length > 2)
+                  player2Score += SQUARE_VALUE * length;
               CheckGameCompleted();
           } 
-	  } 
+	  }
+      if (matchesFound > 0)
+          return true;
+      else
+          return false;
+  }
+  private int CalcMaxLength(List<Point> _p)
+  {
+      int totalLength = 0;
+      for (int x = 0; x < _p.Count(); x++)
+      {
+          //For each new token, check the horizontal and vertical
+          Point start = new Point (_p.ElementAt(x).X, _p.ElementAt(x).Y);
+          Point currentPoint = new Point(start.X, start.Y);
+          int playerToken = spaceOccupied[start.X, start.Y];
+          while (spaceOccupied[currentPoint.X, currentPoint.Y] == playerToken)
+          {
+              totalLength++;
+              currentPoint.X--;
+              if (currentPoint.X < 0)
+                  break;
+          }
+          totalLength--;
+          currentPoint = new Point(start.X, start.Y);
+          while (spaceOccupied[currentPoint.X, currentPoint.Y] == playerToken)
+          {
+              totalLength++;
+              currentPoint.X++;
+              if (currentPoint.X >= X_GRID - 1)
+                  break;
+          }
+          totalLength--;
+          currentPoint = new Point(start.X, start.Y);
+          while (spaceOccupied[currentPoint.X, currentPoint.Y] == playerToken)
+          {
+              totalLength++;
+              currentPoint.Y--;
+              if (currentPoint.Y < 0)
+                  break;
+          }
+          totalLength--;
+          currentPoint = new Point(start.X, start.Y);
+          while (spaceOccupied[currentPoint.X, currentPoint.Y] == playerToken)
+          {
+              totalLength++;
+              currentPoint.Y++;
+              if (currentPoint.Y >= Y_GRID -1)
+                  break;
+          }
+          totalLength--;
+      }
+      totalLength++;
+      return totalLength;
   }
   private bool CheckGameCompleted()
   {
@@ -902,6 +1209,14 @@ private void UpdateHorizMarkers(int _x, int _y)
                 else if (helpPage == 2)
                 {
                     spriteBatch.Draw(help3Sprite, new Vector2(0, 0), Color.White);
+                }
+                else if (helpPage == 3)
+                {
+                    spriteBatch.Draw(help4Sprite, new Vector2(0, 0), Color.White);
+                }
+                else if (helpPage == 4)
+                {
+                    spriteBatch.Draw(chooseNumPlayers, new Vector2(0, 0), Color.White);
                 }
             }
             else if (state == GAME_OVER_STATE)
